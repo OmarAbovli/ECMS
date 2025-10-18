@@ -42,8 +42,8 @@ Ready to join the future? Here's how to get started:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/.git
-cd your-repo-name
+https://github.com/OmarAbovli/ECMS.git
+cd ECMS
 ```
 
 ### 2. Install Dependencies
