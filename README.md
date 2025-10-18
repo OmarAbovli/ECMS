@@ -1,4 +1,4 @@
-# 🚀 Student Management System 🚀
+# 🚀 Educational Center Management System (ECMS) 🚀
 
 Tired of managing your students with spreadsheets from the 90s? Say hello to the future! This project is a modern, sleek with the badazz desigen, and powerful Student Management System designed to make your life as a learning center administrator easier, more efficient, and a lot more fun.
 
