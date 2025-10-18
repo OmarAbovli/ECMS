@@ -1,0 +1,25 @@
+<!-- app/templates/admin.html -->
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة التحكم</title>
+</head>
+<body>
+  <h1>📊 لوحة التحكم</h1>
+  <table border="1" cellpadding="5">
+    <tr>
+      <th>ID</th>
+      <th>الاسم</th>
+      <th>UUID</th>
+    </tr>
+    {% for s in students %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td>{{ s.first_name }} {{ s.last_name or "" }}</td>
+      <td>{{ s.uuid }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>إدارة واتساب</title>
+  <style>
+    body{font-family:system-ui, Arial;padding:20px}
+    .card{background:#fff;padding:12px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    input,button,select,textarea{width:100%;padding:8px;margin-top:8px;border-radius:6px;border:1px solid #e6eef8}
+    button{background:#0b74de;color:#fff;border:none}
+  </style>
+</head>
+<body>
+  <h2>إدارة حسابات واتساب</h2>
+  <div class="card">
+    <h3>أضف حساب واتساب</h3>
+    <form id="addWaForm">
+      <label>اسم الحساب (وصف)</label>
+      <input name="name" />
+      <label>رقم الهاتف (بدون مسافات، مثال: 201234567890)</label>
+      <input name="phone_number" />
+      <label>Phone Number ID (WhatsApp Cloud API) — اختياري</label>
+      <input name="phone_number_id" placeholder="ex: 109876543210987" />
+      <label>Access Token (WhatsApp Cloud API) — اختياري</label>
+      <input name="access_token" placeholder="ضع التوكن هنا" />
+      <label><input type="checkbox" name="use_cloud_api" value="1" /> تفعيل الإرسال التلقائي عبر WhatsApp Cloud API</label>
+      <button type="submit">أضف</button>
+    </form>
+    <div id="addMsg" class="muted"></div>
+  </div>
+
+  <div style="height:12px"></div>
+  <div class="card">
+    <h3>الحسابات</h3>
+    <div id="accountsList">جارٍ التحميل...</div>
+  </div>
+
+  <div style="height:12px"></div>
+  <div class="card">
+    <h3>اختبار الإرسال عبر WhatsApp Web (Playwright / pywhatkit)</h3>
+    <form id="testWebForm">
+      <label>رقم الهاتف (مثال: 201234567890)</label>
+      <input name="phone" />
+      <label>نص الرسالة</label>
+      <textarea name="message"></textarea>
+      <button type="submit">أرسل عبر الويب</button>
+    </form>
+    <div id="testWebMsg" class="muted"></div>
+  </div>
+
+  <script>
+    async function loadAccounts(){
+      const el = document.getElementById('accountsList');
+      el.textContent = 'جارٍ التحميل...';
+      const res = await fetch('/api/wa/accounts');
+      const items = await res.json();
+  if(!items.length) return el.innerHTML = '<div class="muted">لا توجد حسابات</div>';
+  el.innerHTML = items.map(i=>`<div style="padding:8px;border-bottom:1px solid #eee">${i.name || '(بدون اسم)'} — ${i.phone_number || '(بدون رقم)'} — ${i.connected? 'متصل' : 'غير متصل'} ${i.use_cloud_api? '— مرسل آلي' : ''} <button data-id="${i.id}" style="float:left;background:#e74c3c">حذف</button></div>`).join('');
+      el.querySelectorAll('button[data-id]').forEach(b=> b.addEventListener('click', async ()=>{
+        const id = b.getAttribute('data-id');
+        await fetch('/api/wa/accounts/' + id + '/delete', {method:'POST'});
+        loadAccounts();
+      }));
+    }
+    document.getElementById('addWaForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const fd = new FormData(this);
+      // ensure checkbox value is sent as 1/0
+      if(!fd.has('use_cloud_api')) fd.append('use_cloud_api', '0');
+      else fd.set('use_cloud_api', '1');
+      const res = await fetch('/api/wa/accounts', {method:'POST', body: fd});
+      const j = await res.json().catch(()=>({}));
+      const msg = document.getElementById('addMsg');
+      if(res.ok && j.ok){ msg.textContent = 'تمت الإضافة'; this.reset(); loadAccounts(); }
+      else msg.textContent = j.error || 'حدث خطأ';
+    });
+    loadAccounts();
+
+    document.getElementById('testWebForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const fd = new FormData(this);
+      const res = await fetch('/api/wa/send_via_web', {method:'POST', body: fd});
+      const j = await res.json().catch(()=>({}));
+      const msg = document.getElementById('testWebMsg');
+      if(res.ok && j.ok){ msg.textContent = 'طلب الإرسال تم تسجيله. تحقق من سجل الرسائل.'; this.reset(); }
+      else msg.textContent = j.error || 'حدث خطأ أثناء محاولة الإرسال';
+    });
+  </script>
+</body>
+</html>

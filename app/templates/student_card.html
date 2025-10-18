@@ -1,0 +1,271 @@
+<!-- app/templates/student_card.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Student Card</title>
+  <style>
+    body{font-family: system-ui, Arial; padding: 20px;}
+    .card{max-width:600px;margin:auto;border:1px solid #ddd;padding:20px;border-radius:8px;}
+    button{padding:8px 12px;margin-right:8px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>الطالب: {{ student.first_name }} {% if student.last_name %} {{ student.last_name }} {% endif %}</h2>
+
+  <p>UUID: {{ student.uuid }}</p>
+  <p>اسم ولي الأمر: {{ student.parent_name if student.parent_name else 'غير محدد' }}</p>
+  <p>هاتف ولي الأمر: {{ student.parent_phone if student.parent_phone else 'غير متوفر' }}</p>
+  <p>آخر حضور: {{ last_attendance.session_date if last_attendance else 'لا يوجد' }}</p>
+    <p>حالة الدفع: {{ payment_status.status }} {% if payment_status.days_since is not none %} (منذ {{ payment_status.days_since }} يوم) {% endif %}</p>
+
+    <div id="groupBox"
+         data-student-id="{{ student.id }}"
+         data-student-group="{{ student.group_id }}"
+         data-student-class="{{ student.class_id }}">
+      <b>المجموعة الحالية:</b>
+      <span id="currentGroup">تحميل...</span>
+      <form id="changeGroupForm" style="display:inline-block;margin-right:12px">
+        <select id="groupSelect" name="group_id"></select>
+        <button type="submit">تغيير المجموعة</button>
+      </form>
+      <span id="groupMsg" class="muted"></span>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      <button id="markAttendanceBtn">تسجيل حضور الآن</button>
+      <button id="payBtn">تسجيل دفع اشتراك ({{ group_price if group_price is not none else 200 }})</button>
+      <button id="buyBookBtn">شراء كتاب/مذكرة</button>
+      <button id="whatsappBtn" style="background:#25D366">إرسال رسالة واتساب</button>
+      <span id="actionMsg" class="muted"></span>
+    </div>
+    <div id="buyBookBox" style="display:none;margin-top:10px;"></div>
+    <div id="purchases" class="card" style="margin-top:12px;">
+      <h3>المشتريات</h3>
+      <div id="purchasesList" class="muted">جاري التحميل...</div>
+    </div>
+    <div id="results" class="card" style="margin-top:12px;">
+      <h3>نتائج الاختبارات والتسميع</h3>
+      <div id="resultsList" class="muted">جاري التحميل...</div>
+      <div style="margin-top:8px">
+        <form id="addResultForm">
+          <label>اختبار</label>
+          <select id="testSelect" name="test_id" required></select>
+          <label>الدرجة</label>
+          <input name="score" type="number" step="0.01" required />
+          <button type="submit" style="margin-top:6px">إضافة نتيجة</button>
+        </form>
+      </div>
+    </div>
+
+  <script>
+    // Helper to fetch JSON safely
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      return await res.json().catch(()=>[]);
+    }
+
+    // Load groups for the student's class and display current group
+    async function loadGroups() {
+      const groupBox = document.getElementById('groupBox');
+      const studentGroup = groupBox.getAttribute('data-student-group');
+      const studentClass = groupBox.getAttribute('data-student-class');
+      const currentGroup = document.getElementById('currentGroup');
+      const groupSelect = document.getElementById('groupSelect');
+      const groups = await fetchJson('/api/groups?class_id=' + (studentClass || ''));
+      if (Array.isArray(groups) && groups.length) {
+        groupSelect.innerHTML = groups.map(g => `<option value="${g.id}" ${g.id==studentGroup?'selected':''}>${g.name}</option>`).join('');
+        const selected = groups.find(g => g.id == studentGroup);
+        currentGroup.textContent = selected ? selected.name : 'غير محددة';
+      } else {
+        groupSelect.innerHTML = '<option value="">لا توجد مجموعات</option>';
+        currentGroup.textContent = 'غير محددة';
+      }
+    }
+
+    // Change group handler
+    document.getElementById('changeGroupForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const groupBox = document.getElementById('groupBox');
+      const studentId = groupBox.getAttribute('data-student-id');
+      const groupId = document.getElementById('groupSelect').value;
+      const res = await fetch('/api/student/change_group', { method: 'POST', body: new URLSearchParams({student_id: studentId, group_id: groupId}) });
+      const j = await res.json().catch(()=>({}));
+      document.getElementById('groupMsg').textContent = j.ok ? 'تم تغيير المجموعة' : (j.error || 'حدث خطأ');
+      loadGroups();
+    });
+
+    // Buy-book flow
+    document.getElementById('buyBookBtn').addEventListener('click', async function(e){
+      e.preventDefault();
+      const box = document.getElementById('buyBookBox');
+      if (box.style.display === 'block') { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      box.innerHTML = '<div class="muted">تحميل الكتب...</div>';
+      const studentClass = document.getElementById('groupBox').getAttribute('data-student-class');
+      if (!studentClass) { box.innerHTML = '<div class="muted">لا يوجد صف محدد للطالب</div>'; return; }
+      const books = await fetchJson('/api/books?class_id=' + studentClass);
+      if (!books || !books.length) { box.innerHTML = '<div class="muted">لا يوجد كتب أو مذكرات لهذا الصف</div>'; return; }
+      const formHtml = `
+        <form id="buyBookForm">
+          <label>اختر الكتاب أو المذكرة</label>
+          <select name="book_id" required>
+            ${books.map(b => `<option value="${b.id}">${b.name} (${b.type}) — ${b.price} جنيه</option>`).join('')}
+          </select>
+          <div style="margin-top:8px">
+            <button type="submit">تأكيد الشراء</button>
+            <button type="button" id="cancelBuy" style="margin-left:8px">إلغاء</button>
+          </div>
+        </form>
+      `;
+      box.innerHTML = formHtml;
+      document.getElementById('cancelBuy').addEventListener('click', ()=>{ box.style.display='none'; });
+      document.getElementById('buyBookForm').addEventListener('submit', async function(ev){
+        ev.preventDefault();
+        const fd = new FormData(this);
+        fd.append('student_id', document.getElementById('groupBox').getAttribute('data-student-id'));
+        const res = await fetch('/api/student/buy_book', { method: 'POST', body: fd });
+        const j = await res.json().catch(()=>({}));
+          if (res.ok && j.ok) {
+            box.innerHTML = '<div style="color:green">تم تسجيل شراء الكتاب بنجاح</div>';
+            // refresh purchases list
+            loadPurchases();
+          } else {
+            box.innerHTML = '<div style="color:red">حدث خطأ أثناء الشراء</div>';
+          }
+      });
+    });
+
+    // Attendance and payment buttons
+    document.getElementById('markAttendanceBtn').addEventListener('click', async function(e){
+      e.preventDefault();
+      const btn = this; btn.disabled = true;
+      document.getElementById('actionMsg').textContent = '';
+      const form = new FormData(); form.append('code', '{{ student.uuid }}');
+      const res = await fetch('/api/attendance', { method: 'POST', body: form });
+      const j = await res.json().catch(()=>({}));
+      if (res.ok && j.ok) document.getElementById('actionMsg').textContent = 'تم تسجيل الحضور بنجاح';
+      else document.getElementById('actionMsg').textContent = 'حدث خطأ أثناء تسجيل الحضور';
+      btn.disabled = false;
+    });
+
+    document.getElementById('payBtn').addEventListener('click', async function(e){
+      e.preventDefault();
+      const btn = this; btn.disabled = true;
+      document.getElementById('actionMsg').textContent = '';
+      const form = new FormData();
+      form.append('code', '{{ student.uuid }}');
+      form.append('amount', '{{ group_price if group_price is not none else 200.0 }}');
+      const res = await fetch('/api/payment', { method: 'POST', body: form });
+      const j = await res.json().catch(()=>({}));
+      if (res.ok && j.ok) document.getElementById('actionMsg').textContent = 'تم تسجيل الدفع بنجاح';
+      else document.getElementById('actionMsg').textContent = 'حدث خطأ أثناء تسجيل الدفع';
+      btn.disabled = false;
+    });
+
+    // Initialize
+    loadGroups();
+    // Load student's purchases
+    async function loadPurchases(){
+      const studentId = document.getElementById('groupBox').getAttribute('data-student-id');
+      const list = document.getElementById('purchasesList');
+      list.textContent = 'جاري التحميل...';
+      try{
+        const res = await fetch('/api/student/' + studentId + '/books');
+        if(!res.ok){ list.textContent = 'لا توجد مشتريات'; return; }
+        const items = await res.json();
+        if(!items || !items.length){ list.textContent = 'لا توجد مشتريات'; return; }
+        list.innerHTML = items.map(i => `<div>${i.name} — ${i.price} جنيه <span style="color:#666;font-size:12px">(${new Date(i.buy_date).toLocaleString()})</span></div>`).join('');
+      }catch(err){ list.textContent = 'خطأ في جلب المشتريات'; }
+    }
+    loadPurchases();
+    // Load student test results
+    async function loadResults(){
+      const studentId = document.getElementById('groupBox').getAttribute('data-student-id');
+      const list = document.getElementById('resultsList');
+      list.textContent = 'جاري التحميل...';
+      try{
+        const res = await fetch('/api/student/' + studentId + '/results');
+        if(!res.ok){ list.textContent = 'لا توجد نتائج'; return; }
+        const items = await res.json();
+        if(!items || !items.length){ list.textContent = 'لا توجد نتائج'; }
+        else {
+          list.innerHTML = items.map(i => `<div>${i.test_name}: ${i.score}/${i.max_score} <span style="color:#666;font-size:12px">(${new Date(i.recorded_at).toLocaleString()})</span></div>`).join('');
+        }
+      }catch(err){ list.textContent = 'خطأ في جلب النتائج'; }
+    }
+    // load tests into select for adding a result
+    async function loadTestsForForm(){
+      const sel = document.getElementById('testSelect');
+      const studentClass = document.getElementById('groupBox').getAttribute('data-student-class');
+      const tests = await fetchJson('/api/tests?class_id=' + (studentClass || ''));
+      if(!tests || !tests.length){ sel.innerHTML = '<option value="">لا توجد اختبارات</option>'; return; }
+      sel.innerHTML = tests.map(t => `<option value="${t.id}">${t.name} (الحد الأقصى ${t.max_score})</option>`).join('');
+    }
+    document.getElementById('addResultForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const studentId = document.getElementById('groupBox').getAttribute('data-student-id');
+      const fd = new FormData(this);
+      fd.append('student_id', studentId);
+      const res = await fetch('/api/student/add_result', { method: 'POST', body: fd });
+      const j = await res.json().catch(()=>({}));
+      if(res.ok && j.ok){
+        this.reset();
+        loadResults();
+      } else {
+        alert('حدث خطأ أثناء إضافة النتيجة');
+      }
+    });
+    loadResults();
+    loadTestsForForm();
+
+    // WhatsApp send
+    document.getElementById('whatsappBtn').addEventListener('click', async function(){
+      const phone = '{{ student.parent_phone or "" }}'.replace(/[^0-9+]/g,'');
+      if(!phone) return alert('لا يوجد رقم ولي الأمر');
+
+      // Fetch last 2 test results
+      const studentId = document.getElementById('groupBox').getAttribute('data-student-id');
+      const resultsRes = await fetch(`/api/student/${studentId}/results`);
+      const results = await resultsRes.json();
+      let tests_scores_str = "";
+      if (results && results.length) {
+        results.slice(0, 2).forEach(r => {
+          tests_scores_str += `${r.test_name}: ${r.score}/${r.max_score}\n`;
+        });
+      } else {
+        tests_scores_str = "لا توجد درجات مسجلة";
+      }
+
+      // Last attendance
+      const lastAtt = '{{ last_attendance.session_date if last_attendance else "لا يوجد" }}';
+
+      // Payment status
+      const payStatus = {{ payment_status | tojson }};
+      let last_payment_date_str = "لا توجد دفعات مسجلة";
+      let next_payment_date_str = "غير محدد";
+      if (payStatus && payStatus.last_paid_date) {
+        last_payment_date_str = payStatus.last_paid_date;
+        const last_paid_date = new Date(payStatus.last_paid_date);
+        const next_payment_date = new Date(last_paid_date.setDate(last_paid_date.getDate() + 30));
+        next_payment_date_str = next_payment_date.toISOString().split('T')[0];
+      }
+
+      const name = '{{ student.first_name }} {{ student.last_name or "" }}';
+      
+      const msg = `السلام عليكم، هذا بخصوص ${name}. آخر حضور: ${lastAtt}. درجات التسميع والاختبارات\n${tests_scores_str}\nحالة الدفع: ${last_payment_date_str}. موعد الدفع القادم: ${next_payment_date_str}`;
+      
+      const url = `https://wa.me/${phone.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    });
+  </script>
+
+    <div style="margin-top:12px;">
+      <img src="/static/barcodes/{{ student.uuid }}.png" alt="barcode" style="max-width:350px"/>
+      <img src="/static/barcodes/qr_{{ student.uuid }}.png" alt="qr" style="max-width:200px"/>
+    </div>
+  </div>
+</body>
+</html>
+

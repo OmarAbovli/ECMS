@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>إدارة المجموعات</title>
+  <style>
+    body{font-family: system-ui, Arial; background:#f3f6fb; margin:0;padding:20px}
+    .container{max-width:900px;margin:0 auto}
+    h1{font-size:22px}
+    .card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(12,30,60,0.06);margin-bottom:18px}
+    label{display:block;margin-top:8px;font-size:13px;color:#333}
+    input,select,button{width:100%;padding:8px;margin-top:6px;border:1px solid #e0e6ef;border-radius:6px;font-size:14px}
+    button{background:#0b74de;color:#fff;border:none;cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:8px;border:1px solid #e0e6ef;text-align:center}
+    th{background:#f7fafd}
+    .muted{color:#666;font-size:13px}
+    a{color:#0b74de;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>إدارة المجموعات</h1>
+    <div class="card">
+      <h3>إضافة مجموعة جديدة</h3>
+      <form id="addGroupForm">
+        <label>اسم المجموعة</label>
+        <input name="name" required />
+        <label>الصف</label>
+        <select name="class_id" id="classSelect" required></select>
+        <label>سعر الاشتراك الشهري</label>
+        <input name="subscription_price" type="number" min="0" step="0.01" required placeholder="مثلاً 200" />
+      <div style="margin-top:8px; display:flex; gap:6px; align-items:center">
+        <input id="newClassName" type="text" placeholder="اسم صف جديد" style="flex:1; display:none" />
+        <button id="addClassBtn" type="button" style="width:auto;white-space:nowrap; display:none">إضافة صف جديد</button>
+      </div>
+        <button type="submit" style="margin-top:10px">إضافة مجموعة</button>
+      </form>
+      <div id="addGroupMsg" class="muted"></div>
+    </div>
+    <div class="card">
+      <h3>كل المجموعات</h3>
+      <label>اختر الصف</label>
+      <select id="filterClassSelect"></select>
+      <table id="groupsTable">
+        <thead>
+          <tr><th>اسم المجموعة</th><th>الصف</th><th>عدد الطلاب</th><th>إجراءات</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    // جلب الصفوف
+    async function loadClasses(selectId) {
+  const res = await fetch('/api/classes');
+  const classes = await res.json();
+  const select = document.getElementById(selectId);
+  let html = '<option value="">اختر الصف</option>';
+  html += classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  html += '<option value="__add_new__">+ إضافة صف جديد</option>';
+  select.innerHTML = html;
+    }
+    loadClasses('classSelect');
+    // دعم إضافة صف جديد من نفس الصفحة
+    const classSelect = document.getElementById('classSelect');
+    const newClassName = document.getElementById('newClassName');
+    const addClassBtn = document.getElementById('addClassBtn');
+    if(classSelect && newClassName && addClassBtn){
+      classSelect.onchange = function(){
+        if(classSelect.value === '__add_new__'){
+          newClassName.style.display = '';
+          addClassBtn.style.display = '';
+        }else{
+          newClassName.style.display = 'none';
+          addClassBtn.style.display = 'none';
+        }
+      };
+      addClassBtn.onclick = async function(){
+        const name = newClassName.value.trim();
+        if(!name) { alert('اكتب اسم الصف'); return; }
+        addClassBtn.disabled = true;
+        const fd = new FormData(); fd.append('name', name);
+        const res = await fetch('/api/classes', {method:'POST', body: fd});
+        const j = await res.json();
+        if(j.ok) {
+          // أضف الصف الجديد للقائمة وحدده
+          const opt = document.createElement('option');
+          opt.value = j.id; opt.textContent = j.name;
+          classSelect.insertBefore(opt, classSelect.querySelector('option[value="__add_new__"]'));
+          classSelect.value = j.id;
+          classSelect.dispatchEvent(new Event('change'));
+          newClassName.value = '';
+          newClassName.style.display = 'none';
+          addClassBtn.style.display = 'none';
+        } else {
+          alert('حدث خطأ أثناء إضافة الصف');
+        }
+        addClassBtn.disabled = false;
+      };
+    }
+    loadClasses('filterClassSelect');
+
+    // إضافة مجموعة جديدة
+    document.getElementById('addGroupForm').onsubmit = async function(e){
+      e.preventDefault();
+      const fd = new FormData(this);
+      const res = await fetch('/api/groups', {method:'POST', body:fd});
+      const j = await res.json();
+      document.getElementById('addGroupMsg').textContent = j.ok ? 'تمت إضافة المجموعة' : (j.error || 'حدث خطأ');
+      if(j.ok) loadGroups();
+    };
+
+    // جلب وعرض المجموعات
+    async function loadGroups(){
+      const classId = document.getElementById('filterClassSelect').value;
+      let url = '/api/groups';
+      if(classId) url += '?class_id=' + classId;
+      const res = await fetch(url);
+      const groups = await res.json();
+      const tbody = document.querySelector('#groupsTable tbody');
+      tbody.innerHTML = '';
+      for(const g of groups){
+        // جلب الطلاب في المجموعة (عند الطلب فقط)
+        tbody.innerHTML += `<tr>
+          <td>
+            <span id="groupName_${g.id}">${g.name}</span>
+            <button onclick="editGroupName(${g.id}, this.getAttribute('data-name'), ${g.class_id})" data-name="${g.name.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/\"/g, '&quot;')}" style="font-size:12px;padding:2px 8px;margin-right:6px">تعديل</button>
+          </td>
+          <td>${g.class_id}</td>
+          <td id="count_${g.id}">...</td>
+          <td><button onclick="showGroupStudents(${g.id})">عرض طلاب المجموعة</button><div id="students_${g.id}" style="display:none;margin-top:8px"></div></td>
+        </tr>`;
+        // جلب عدد الطلاب فقط
+        fetch('/api/group_students?group_id='+g.id).then(r=>r.json()).then(students=>{
+          document.getElementById('count_'+g.id).textContent = students.length;
+        });
+      }
+    // عرض طلاب المجموعة عند الضغط
+    window.showGroupStudents = async function(groupId){
+      const div = document.getElementById('students_'+groupId);
+      if(div.style.display==='none'){
+        const res = await fetch('/api/group_students?group_id='+groupId);
+        const students = await res.json();
+        div.innerHTML = students.length ? students.map(s=>`<a href='/student/${s.uuid}' target='_blank'>${s.first_name} ${s.last_name||''}</a>`).join('<br>') : '<span class="muted">لا يوجد طلاب</span>';
+        div.style.display = 'block';
+      }else{
+        div.style.display = 'none';
+      }
+    }
+
+    // تعديل اسم المجموعة
+    window.editGroupName = function(groupId, oldName, classId){
+      // معالجة أي علامات اقتباس
+      oldName = (oldName || '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+      const span = document.getElementById('groupName_'+groupId);
+      const input = document.createElement('input');
+      input.value = oldName;
+      input.style.width = '70%';
+      input.onkeydown = async function(e){
+        if(e.key==='Enter'){
+          const newName = input.value.trim();
+          if(!newName) return;
+          // call API
+          const fd = new FormData();
+          fd.append('group_id', groupId);
+          fd.append('name', newName);
+          const res = await fetch('/api/groups/update', {method:'POST', body:fd});
+          const j = await res.json();
+          if(j.ok){ span.textContent = newName; }
+          else{ alert(j.error||'خطأ'); }
+          span.style.display='';
+          input.remove();
+        }
+        if(e.key==='Escape'){
+          span.style.display='';
+          input.remove();
+        }
+      };
+      span.parentNode.insertBefore(input, span);
+      span.style.display='none';
+      input.focus();
+    }
+    }
+    document.getElementById('filterClassSelect').onchange = loadGroups;
+    window.onload = loadGroups;
+  </script>
+</body>
+</html>

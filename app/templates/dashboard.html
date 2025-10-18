@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>dashboard</title>
+  <style>
+    :root{--accent:#0b74de;--card:#fff;--bg:#f3f6fb}
+    body{font-family: system-ui, Arial; background:var(--bg); margin:0;padding:20px}
+    .container{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{margin:0;font-size:20px}
+  /* responsive cards grid for dashboard */
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+  /* make the student main area span full width */
+  .student-main{grid-column:1/-1}
+  .sidebar-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .sidebar .card{margin-top:0}
+    .card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(12,30,60,0.06)}
+    label{display:block;margin-top:8px;font-size:13px;color:#333}
+    input,select,button,textarea{width:100%;padding:8px;margin-top:6px;border:1px solid #e0e6ef;border-radius:6px;font-size:14px}
+    button{background:var(--accent);color:#fff;border:none;cursor:pointer}
+    .small-btn{display:inline-block;padding:6px 10px;font-size:13px;border-radius:6px}
+    .muted{color:#666;font-size:13px}
+    .student-details{display:flex;gap:12px;align-items:center}
+    .student-details img{max-width:140px;border-radius:6px;border:1px solid #e6eef8}
+    .actions{margin-top:12px;display:flex;gap:8px}
+    .status-dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-left:8px}
+    .status-green{background:#2ecc71}
+    .status-yellow{background:#f1c40f}
+    .status-red{background:#e74c3c}
+    .logs{max-height:300px;overflow:auto;margin-top:10px;padding:8px;border-radius:6px;background:#fff}
+    footer{margin-top:18px;text-align:center;color:#888;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Dashbord</h1>
+      <div style="display:flex;gap:12px;align-items:center">
+  <a href="/groups" target="_blank" style="background:#1abc9c;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:15px">إدارة المجموعات</a>
+  <a href="/wa" target="_blank" style="background:#34495e;color:#fff;padding:8px 12px;border-radius:6px;text-decoration:none;font-size:14px">ادارة واتساب</a>
+        <button id="openTreasuryBtn" style="background:#e67e22;color:#fff;padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-size:15px">الخزنة</button>
+        <button id="openReportsBtn" style="background:#3498db;color:#fff;padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-size:15px">ارسال التقارير</button>
+        <span class="muted">الخادم: <strong>localhost:8000</strong></span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="cards-grid">
+        <div class="card">
+          <h3>إضافة طالب جديد</h3>
+          <form id="addStudentForm">
+            <label>الاسم الأول</label>
+            <input name="first_name" required />
+            <label>الاسم الأخير</label>
+            <input name="last_name" />
+            <label>اسم ولي الأمر</label>
+            <input name="parent_name" />
+            <label>هاتف ولي الأمر</label>
+            <input name="parent_phone" />
+            <label>الصف</label>
+            <select name="class_id" id="classSelect" required></select>
+            <div style="margin-top:8px; display:flex; gap:6px; align-items:center">
+              <input id="newClassName" type="text" placeholder="اسم صف جديد" style="flex:1" />
+              <button id="addClassBtn" type="button" style="width:auto;white-space:nowrap">إضافة صف جديد</button>
+            </div>
+            <label>المجموعة</label>
+            <select name="group_id" id="groupSelect" required></select>
+            <label>كود بطاقة الطالب (استخدم قارئ RFID)</label>
+            <input name="uuid" required placeholder="مرر البطاقة هنا..." />
+            <button id="addStudentBtn" type="submit" style="margin-top:10px">إضافة طالب</button>
+          </form>
+          <div id="newStudentBox" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+          <h3>إضافة كتاب/مذكرة جديدة</h3>
+          <form id="addBookForm">
+            <label>اسم الكتاب أو المذكرة</label>
+            <input name="name" required />
+            <label>النوع</label>
+            <select name="type" required>
+              <option value="book">كتاب</option>
+              <option value="memo">مذكرة</option>
+              <option value="other">أخرى</option>
+            </select>
+            <label>الصف</label>
+            <select name="class_id" id="bookClassSelect" required></select>
+            <label>السعر</label>
+            <input name="price" type="number" min="0" step="0.01" required placeholder="مثلاً 100" />
+            <button type="submit" style="margin-top:10px">إضافة</button>
+          </form>
+          <div id="addBookMsg" class="muted"></div>
+  </div>
+  <div class="card">
+          <h3>إدارة الاختبارات وتسجيل النتائج</h3>
+          <p class="muted">أضف اختبارًا جديدًا أو سجّل نتيجة لطالب بالبحث عن كوده.</p>
+          <form id="addTestForm">
+            <label>اسم الاختبار</label>
+            <input name="name" required placeholder="مثال: تسميع  او اختبار" />
+            <label>الصف (اختياري)</label>
+            <select id="testClassSelect" name="class_id"><option value="">الكل</option></select>
+            <label>الحد الأقصى للدرجات</label>
+            <input name="max_score" type="number" value="100" />
+            <button type="submit" style="margin-top:8px">إنشاء اختبار</button>
+          </form>
+          <div id="addTestMsg" class="muted"></div>
+
+          <hr style="margin:12px 0" />
+
+          <h4>تسجيل نتيجة لطالب</h4>
+          <label>ابحث عن طالب بالكود</label>
+          <div style="display:flex;gap:8px">
+            <input id="resultStudentCode" placeholder="أدخل كود الطالب أو ماسحه" />
+            <button id="findStudentBtn" type="button">بحث</button>
+          </div>
+          <div id="foundStudent" class="muted" style="margin-top:8px">لا يوجد طالب محدد</div>
+
+          <label style="margin-top:8px">اختر الاختبار</label>
+          <select id="testSelectForResult" name="test_id"></select>
+          <label>الدرجة</label>
+          <input id="resultScore" type="number" step="0.01" />
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="submitResultBtn" class="small-btn">سجل النتيجة</button>
+            <button id="clearResultBtn" type="button" class="small-btn" style="background:#888">مسح</button>
+          </div>
+          <div id="resultMsg" class="muted" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+          <h3>مسح / بحث بكود</h3>
+          <p class="muted">استخدم قارئ الباركود (keyboard wedge) أو انسخ الكود هنا واضغط بحث</p>
+          <input id="scanInput" placeholder="الصق الكود أو مرر الكارت أو اكتب اسم الطالب" />
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button id="scanBtn">بحث</button>
+            <button id="clearBtn" style="background:#888">مسح الحقل</button>
+          </div>
+          <div id="searchResults" style="margin-top:8px"></div>
+        </div>
+      
+
+      </div> <!-- end cards-grid -->
+
+      <!-- المحتوى الرئيسي: تفاصيل الطالب والإجراءات -->
+      <div class="student-main">
+        <div id="studentCard" class="card" style="display:none">
+          <div class="student-details">
+            <div>
+              <h2 id="studentName"></h2>
+              <div class="muted">UUID: <span id="studentUUID"></span></div>
+              <div style="margin-top:6px">آخر حضور: <span id="lastAttendance">لا يوجد</span></div>
+              <div style="margin-top:6px">حالة الدفع: <span id="paymentStatus"></span></div>
+
+              <div class="actions">
+                <button id="markAttendance" class="small-btn">تسجيل حضور الآن</button>
+                <button id="openPayment" class="small-btn" style="background:#1abc9c">تسجيل دفع</button>
+                <a id="openCard" class="small-btn" href="#" target="_blank" style="background:#34495e">فتح كارت الطالب</a>
+                <button id="sendWhatsapp" class="small-btn" style="background:#25D366">واتساب</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:10px">
+            <h4>تسجلات سريعة</h4>
+            <div id="logs" class="logs"></div>
+          </div>
+        </div>
+
+        <div id="noStudent" class="card" style="text-align:center">
+          <p class="muted">لا يوجد طالب محدد. استخدم الادوات الي فوق لإضافة طالب جديد أو مسح الكود.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>my SYS</footer>
+  </div>
+
+  <script>
+  // إضافة صف جديد
+    document.addEventListener('DOMContentLoaded', function() {
+      const addClassBtn = document.getElementById('addClassBtn');
+      const newClassName = document.getElementById('newClassName');
+      const classSelect = document.getElementById('classSelect');
+      if(addClassBtn) {
+        addClassBtn.onclick = async function() {
+          const name = newClassName.value.trim();
+          if(!name) { alert('اكتب اسم الصف'); return; }
+          addClassBtn.disabled = true;
+          const fd = new FormData(); fd.append('name', name);
+          const res = await fetch('/api/classes', {method:'POST', body: fd});
+          const j = await res.json();
+          if(j.ok) {
+            // أضف الصف الجديد للقائمة وحدده
+            const opt = document.createElement('option');
+            opt.value = j.id; opt.textContent = j.name;
+            classSelect.appendChild(opt);
+            classSelect.value = j.id;
+            classSelect.dispatchEvent(new Event('change'));
+            newClassName.value = '';
+          } else {
+            alert('حدث خطأ أثناء إضافة الصف');
+          }
+          addClassBtn.disabled = false;
+        }
+      }
+    });
+
+    // تعبئة قائمة الصفوف في نموذج إضافة كتاب
+    async function loadBookClasses() {
+      const res = await fetch('/api/classes');
+      const classes = await res.json().catch(()=>[]);
+      const select = document.getElementById('bookClassSelect');
+      if(!select) return;
+      let html = '<option value="" disabled selected>اختر الصف</option>';
+      if (Array.isArray(classes) && classes.length) {
+        html += classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      } else {
+        html += '<option value="" disabled>لا توجد صفوف</option>';
+      }
+      select.innerHTML = html;
+    }
+    loadBookClasses();
+
+    // إضافة كتاب/مذكرة
+    const addBookForm = document.getElementById('addBookForm');
+    if (addBookForm) {
+      addBookForm.addEventListener('submit', async function(e){
+        e.preventDefault();
+        const msgEl = document.getElementById('addBookMsg');
+        if (msgEl) msgEl.textContent = 'جاري الإرسال...';
+        const fd = new FormData(this);
+        try {
+          const res = await fetch('/api/books', { method: 'POST', body: fd });
+          const j = await res.json().catch(()=>({}));
+          if (res.ok && j.ok) {
+            if (msgEl) msgEl.textContent = 'تمت الإضافة';
+            this.reset();
+            loadBookClasses();
+          } else {
+            if (msgEl) msgEl.textContent = j.error || 'حدث خطأ عند الإضافة';
+          }
+        } catch (err) {
+          if (msgEl) msgEl.textContent = 'خطأ اتصال: ' + (err.message || err);
+        }
+      });
+    }
+    const addForm = document.getElementById('addStudentForm');
+    const newBox = document.getElementById('newStudentBox');
+    const scanInput = document.getElementById('scanInput');
+    const scanBtn = document.getElementById('scanBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const studentCard = document.getElementById('studentCard');
+    const noStudent = document.getElementById('noStudent');
+    const studentName = document.getElementById('studentName');
+    const studentUUID = document.getElementById('studentUUID');
+    const barcodeImg = document.getElementById('barcodeImg');
+    const lastAttendance = document.getElementById('lastAttendance');
+    const paymentStatus = document.getElementById('paymentStatus');
+    const logs = document.getElementById('logs');
+    const markAttendanceBtn = document.getElementById('markAttendance');
+    const openPaymentBtn = document.getElementById('openPayment');
+    const openCard = document.getElementById('openCard');
+
+    function showStudent(data){
+      noStudent.style.display='none';
+      studentCard.style.display='block';
+      studentName.textContent = (data.student.first_name || '') + (data.student.last_name? (' ' + data.student.last_name): '');
+      studentUUID.textContent = data.student.uuid;
+      lastAttendance.textContent = data.last_attendance || 'لا يوجد';
+      if(data.payment_status && data.payment_status.status){
+        paymentStatus.textContent = data.payment_status.status + (data.payment_status.days_since? (' — منذ ' + data.payment_status.days_since + ' يوم') : '');
+      } else paymentStatus.textContent = 'لا يوجد دفعات';
+
+      openCard.href = '/student/' + encodeURIComponent(data.student.uuid);
+      logs.innerHTML = '';
+      if(data.last_attendance) logs.innerHTML += '<div>آخر حضور: ' + data.last_attendance + '</div>';
+      if(data.payment_status && data.payment_status.last_paid_date) logs.innerHTML += '<div>آخر دفع: ' + data.payment_status.last_paid_date + '</div>';
+
+      // attach actions
+      markAttendanceBtn.onclick = async ()=>{
+        const form = new FormData(); form.append('code', data.student.uuid); form.append('status','present');
+        const res = await fetch('/api/attendance', {method:'POST', body: form});
+        const j = await res.json();
+        logs.innerHTML = '<div style="color:green">تم تسجيل حضور: ' + j.session_date + '</div>' + logs.innerHTML;
+        lastAttendance.textContent = j.session_date;
+      }
+
+      openPaymentBtn.onclick = async ()=>{
+        const amount = prompt('اكتب قيمة الدفعة (مثلاً 200)');
+        if(!amount) return;
+        const form = new FormData(); form.append('code', data.student.uuid); form.append('amount', amount);
+        const res = await fetch('/api/payment', {method:'POST', body: form});
+        const j = await res.json();
+        if(j.ok){
+          logs.innerHTML = '<div style="color:green">تم تسجيل دفع: ' + amount + ' EGP</div>' + logs.innerHTML;
+          // reload payment status
+          const scanRes = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: data.student.uuid})});
+          const updated = await scanRes.json();
+          if(updated.payment_status) paymentStatus.textContent = updated.payment_status.status + (updated.payment_status.days_since? (' — منذ ' + updated.payment_status.days_since + ' يوم') : '');
+        }
+      }
+      // WhatsApp send button (uses parent phone if available)
+      const waBtn = document.getElementById('sendWhatsapp');
+      if(waBtn){
+        waBtn.onclick = async function(){
+          const phone = (data.student.parent_phone || '').replace(/[^0-9+]/g,'');
+          if(!phone) return alert('لا يوجد رقم ولي الأمر');
+
+          // Fetch last 2 test results
+          const resultsRes = await fetch(`/api/student/${data.student.id}/results`);
+          const results = await resultsRes.json();
+          let tests_scores_str = "";
+          if (results && results.length) {
+            results.slice(0, 2).forEach(r => {
+              tests_scores_str += `${r.test_name}: ${r.score}/${r.max_score}\n`;
+            });
+          } else {
+            tests_scores_str = "لا توجد درجات مسجلة";
+          }
+
+          // Last attendance
+          const lastAtt = data.last_attendance || 'لا يوجد';
+
+          // Payment status
+          const payStatus = data.payment_status;
+          let last_payment_date_str = "لا توجد دفعات مسجلة";
+          let next_payment_date_str = "غير محدد";
+          if (payStatus && payStatus.last_paid_date) {
+            last_payment_date_str = payStatus.last_paid_date;
+            const last_paid_date = new Date(payStatus.last_paid_date);
+            const next_payment_date = new Date(last_paid_date.setDate(last_paid_date.getDate() + 30));
+            next_payment_date_str = next_payment_date.toISOString().split('T')[0];
+          }
+
+          const name = (data.student.first_name || '') + (data.student.last_name? (' ' + data.student.last_name): '');
+          
+          const msg = `السلام عليكم، هذا بخصوص ${name}. آخر حضور: ${lastAtt}. درجات التسميع والاختبارات\n${tests_scores_str}\nحالة الدفع: ${last_payment_date_str}. موعد الدفع القادم: ${next_payment_date_str}`;
+          
+          const url = `https://wa.me/${phone.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`;
+          window.open(url, '_blank');
+        }
+      }
+    }
+
+
+    // جلب الصفوف والمجموعات وتعبئة القوائم
+    async function loadClassesAndGroups() {
+      const classSelect = document.getElementById('classSelect');
+      const groupSelect = document.getElementById('groupSelect');
+      classSelect.innerHTML = '<option value="">تحميل...</option>';
+      groupSelect.innerHTML = '<option value="">اختر الصف أولاً</option>';
+      // جلب الصفوف
+      const res = await fetch('/api/classes');
+      const classes = await res.json();
+      classSelect.innerHTML = '<option value="">اختر الصف</option>' + classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      // عند تغيير الصف، جلب المجموعات
+      classSelect.onchange = async function() {
+        const classId = classSelect.value;
+        if (!classId) { groupSelect.innerHTML = '<option value="">اختر الصف أولاً</option>'; return; }
+        const gres = await fetch('/api/groups?class_id=' + classId);
+        const groups = await gres.json();
+        groupSelect.innerHTML = '<option value="">اختر المجموعة</option>' + groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+      };
+      // trigger once
+      classSelect.onchange();
+    }
+    loadClassesAndGroups();
+
+    addForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(addForm);
+      if(!fd.get('class_id') || !fd.get('group_id')){
+        alert('يجب اختيار الصف والمجموعة');
+        return;
+      }
+      const res = await fetch('/api/students', {method:'POST', body: fd});
+      const j = await res.json();
+      newBox.style.display='block';
+      newBox.innerHTML = `<div class="muted">تم إضافة الطالب بنجاح. الكود: <b>${j.uuid}</b>. <a target="_blank" href="/student/${j.uuid}">فتح الكارت</a></div>`;
+    });
+
+    scanBtn.onclick = async ()=>{
+      const q = scanInput.value.trim();
+      if(!q) return alert('حط الكود او مرر الكارت');
+
+      // try name/uuid search
+      const sr = document.getElementById('searchResults');
+      sr.innerHTML = 'جارٍ البحث...';
+      try{
+        const r = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+        const list = await r.json();
+        if(!list || !list.length){
+          // fallback to scan by code (exact uuid search)
+          const res = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: q})});
+          if(!res.ok){ const err = await res.json().catch(()=>({})); sr.innerHTML = '<div class="muted">لم يتم العثور على طالب</div>'; return; }
+          const data = await res.json(); sr.innerHTML = ''; showStudent(data); return;
+        }
+        // if multiple results show list
+        if(list.length > 1){
+          sr.innerHTML = '<div class="muted">النتائج:</div>' + list.map(s=>`<div style="padding:6px;border-bottom:1px solid #eee;cursor:pointer" data-uuid="${s.uuid}"><b>${s.first_name} ${s.last_name||''}</b> — ${s.class_name?('الصف: '+s.class_name):''} ${s.group_name?('المجموعة: '+s.group_name):''} — UUID: ${s.uuid}</div>`).join('');
+          // attach click
+          sr.querySelectorAll('[data-uuid]').forEach(el=> el.addEventListener('click', async ()=>{
+            const uuid = el.getAttribute('data-uuid');
+            const res = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: uuid})});
+            const data = await res.json(); sr.innerHTML = ''; showStudent(data);
+          }));
+          return;
+        }
+        // exactly one match
+        const only = list[0];
+        const res = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: only.uuid})});
+        const data = await res.json(); sr.innerHTML = ''; showStudent(data);
+      } catch(err){ sr.innerHTML = '<div class="muted">حدث خطأ عند البحث</div>'; }
+    }
+
+    clearBtn.onclick = ()=>{ scanInput.value=''; }
+
+    // support pressing Enter in scan input
+    scanInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ scanBtn.click(); } });
+
+    // auto-focus
+    window.onload = ()=>{ scanInput.focus(); }
+    
+    // ---- إدارة الاختبارات وتسجيل النتائج ----
+    const testClassSelect = document.getElementById('testClassSelect');
+    const testSelectForResult = document.getElementById('testSelectForResult');
+    const addTestForm = document.getElementById('addTestForm');
+    const addTestMsg = document.getElementById('addTestMsg');
+    const findStudentBtn = document.getElementById('findStudentBtn');
+    const resultStudentCode = document.getElementById('resultStudentCode');
+    const foundStudent = document.getElementById('foundStudent');
+    const submitResultBtn = document.getElementById('submitResultBtn');
+    const resultMsg = document.getElementById('resultMsg');
+    const clearResultBtn = document.getElementById('clearResultBtn');
+
+    async function loadTestClasses(){
+      const res = await fetch('/api/classes');
+      const classes = await res.json().catch(()=>[]);
+      if(!testClassSelect) return;
+      testClassSelect.innerHTML = '<option value="">الكل</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    }
+    async function loadTests(classId){
+      const url = '/api/tests' + (classId ? ('?class_id=' + classId) : '');
+      const res = await fetch(url);
+      const tests = await res.json().catch(()=>[]);
+      if(!testSelectForResult) return;
+      if(!tests.length) testSelectForResult.innerHTML = '<option value="">لا توجد اختبارات</option>';
+      else testSelectForResult.innerHTML = tests.map(t=>`<option value="${t.id}">${t.name} (الحد ${t.max_score})</option>`).join('');
+    }
+
+    // init
+    loadTestClasses(); loadTests();
+
+    if(resultStudentCode){
+      resultStudentCode.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ findStudentBtn.click(); } });
+    }
+
+    if(addTestForm){
+      addTestForm.addEventListener('submit', async function(e){
+        e.preventDefault();
+        addTestMsg.textContent = 'جاري الإنشاء...';
+        const fd = new FormData(this);
+        const res = await fetch('/api/tests', {method:'POST', body: fd});
+        const j = await res.json().catch(()=>({}));
+        if(res.ok && j.ok){ addTestMsg.textContent = 'تم إنشاء الاختبار'; this.reset(); loadTests(); }
+        else addTestMsg.textContent = j.error || 'حدث خطأ';
+      });
+    }
+
+    if(testClassSelect){
+      testClassSelect.addEventListener('change', ()=> loadTests(testClassSelect.value));
+    }
+
+    // Find student by code (reuse /api/scan)
+    let currentFoundStudent = null;
+    findStudentBtn.addEventListener('click', async function(){
+      const q = resultStudentCode.value.trim();
+      if(!q) return alert('أدخل كود الطالب أو الاسم');
+      foundStudent.textContent = 'جاري البحث...';
+      try{
+        const r = await fetch('/api/students/search?q=' + encodeURIComponent(q));
+        const list = await r.json();
+        if(!list || !list.length){
+          // fallback to scan by code
+          const res = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: q})});
+          if(!res.ok){ foundStudent.textContent = 'لم يتم العثور على طالب'; currentFoundStudent = null; return; }
+          const data = await res.json();
+          currentFoundStudent = data.student;
+          foundStudent.innerHTML = `<b>${data.student.first_name} ${data.student.last_name || ''}</b> — UUID: ${data.student.uuid}`;
+          loadTests(data.student.class_id);
+          return;
+        }
+        if(list.length > 1){
+          foundStudent.innerHTML = '<div class="muted">النتائج:</div>' + list.map(s=>`<div style="padding:6px;border-bottom:1px solid #eee;cursor:pointer" data-uuid="${s.uuid}"><b>${s.first_name} ${s.last_name||''}</b> — ${s.class_name?('الصف: '+s.class_name):''} ${s.group_name?('المجموعة: '+s.group_name):''} — UUID: ${s.uuid}</div>`).join('');
+          foundStudent.querySelectorAll('[data-uuid]').forEach(el=> el.addEventListener('click', async ()=>{
+            const uuid = el.getAttribute('data-uuid');
+            const res = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: uuid})});
+            const data = await res.json();
+            currentFoundStudent = data.student;
+            foundStudent.innerHTML = `<b>${data.student.first_name} ${data.student.last_name || ''}</b> — UUID: ${data.student.uuid}`;
+            loadTests(data.student.class_id);
+          }));
+          return;
+        }
+        // exactly one
+        const only = list[0];
+        const res = await fetch('/api/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({code: only.uuid})});
+        const data = await res.json();
+        currentFoundStudent = data.student;
+        foundStudent.innerHTML = `<b>${data.student.first_name} ${data.student.last_name || ''}</b> — UUID: ${data.student.uuid}`;
+        loadTests(data.student.class_id);
+      } catch(err){ foundStudent.textContent = 'حدث خطأ عند البحث'; currentFoundStudent = null; }
+    });
+
+    submitResultBtn.addEventListener('click', async function(){
+      if(!currentFoundStudent) return alert('ابحث عن طالب أولاً');
+      const testId = testSelectForResult.value;
+      const score = document.getElementById('resultScore').value;
+      if(!testId) return alert('اختر اختبار');
+      if(score === '') return alert('اكتب الدرجة');
+      const fd = new FormData(); fd.append('student_id', currentFoundStudent.id); fd.append('test_id', testId); fd.append('score', score);
+      const res = await fetch('/api/student/add_result', {method:'POST', body: fd});
+      const j = await res.json().catch(()=>({}));
+      if(res.ok && j.ok){ resultMsg.textContent = 'تم تسجيل النتيجة'; resultStudentCode.value = ''; foundStudent.textContent = 'لا يوجد طالب محدد'; document.getElementById('resultScore').value = ''; }
+      else resultMsg.textContent = j.error || 'حدث خطأ أثناء التسجيل';
+    });
+
+    clearResultBtn.addEventListener('click', function(){ resultStudentCode.value=''; foundStudent.textContent='لا يوجد طالب محدد'; currentFoundStudent=null; document.getElementById('resultScore').value=''; resultMsg.textContent=''; });
+
+    // ---- الخزنة: عرض الواردات والمصروفات ----
+    const openTreasuryBtn = document.getElementById('openTreasuryBtn');
+    // create a simple panel/modal
+    const treasuryPanel = document.createElement('div');
+    treasuryPanel.id = 'treasuryPanel';
+    Object.assign(treasuryPanel.style, {position:'fixed', top:'40px', left:'40px', right:'40px', bottom:'40px', background:'#fff', borderRadius:'10px', boxShadow:'0 10px 30px rgba(0,0,0,0.2)', padding:'16px', zIndex:9999, overflow:'auto', display:'none', direction:'rtl'});
+    treasuryPanel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3>الخزنة</h3>
+        <div>
+          <button id="closeTreasury" class="small-btn" style="background:#888">إغلاق</button>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:12px;align-items:flex-start">
+        <div style="flex:1;min-width:280px">
+          <h4>الملخص</h4>
+          <div id="treasurySummary" class="muted">جارٍ التحميل...</div>
+          <h5 style="margin-top:12px">تفصيل بالإجماليات حسب الصف/المجموعة</h5>
+          <div id="treasuryByClass" class="muted"></div>
+        </div>
+        <div style="width:320px">
+          <h4>سجل المصروفات</h4>
+          <div id="expensesList" style="max-height:360px;overflow:auto;background:#f9f9fb;padding:8px;border-radius:6px"></div>
+          <h5 style="margin-top:10px">أضف مصروف / فاتورة</h5>
+          <div>
+            <input id="expTitle" placeholder="عنوان الفاتورة (مثلاً إيجار، إنترنت)" />
+            <input id="expAmount" type="number" placeholder="المبلغ" />
+            <textarea id="expNote" placeholder="ملاحظة (اختياري)" style="height:60px"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="addExpenseBtn">سجل المصروف</button>
+              <button id="refreshTreasury" type="button" class="small-btn" style="background:#bdc3c7">تحديث</button>
+            </div>
+            <div id="expenseMsg" class="muted" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(treasuryPanel);
+
+    // ----- Reports panel -----
+    const reportsPanel = document.createElement('div');
+    reportsPanel.id = 'reportsPanel';
+    Object.assign(reportsPanel.style, {position:'fixed', top:'40px', left:'40px', right:'40px', bottom:'40px', background:'#fff', borderRadius:'10px', boxShadow:'0 10px 30px rgba(0,0,0,0.2)', padding:'16px', zIndex:9999, overflow:'auto', display:'none', direction:'rtl'});
+    reportsPanel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3>ارسال التقارير</h3>
+        <div><button id="closeReports" class="small-btn" style="background:#888">إغلاق</button></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <div style="flex:1">
+          <label>اختر الصف</label>
+          <select id="reportClassSelect"></select>
+          <label style="margin-top:8px">اختر المجموعة</label>
+          <select id="reportGroupSelect"></select>
+          <div style="margin-top:8px">
+            <button id="fetchGroupStudents" class="small-btn" style="background:#2ecc71">جلب طلاب المجموعة</button>
+          </div>
+          <div id="groupStudentsList" style="margin-top:8px;max-height:280px;overflow:auto;background:#f9f9fb;padding:8px;border-radius:6px"></div>
+        </div>
+        <div style="width:360px">
+          <label>نص التقرير (يمكن استخدام {name} و {status} و {last_att})</label>
+          <textarea id="reportMessage" style="width:100%;height:160px"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <div style="display:flex;gap:8px;align-items:center">
+              <label style="margin:0"><input type="radio" name="send_mode" value="manual" checked /> يدوي (فتح واتساب)</label>
+              <label style="margin:0"><input type="radio" name="send_mode" value="auto" /> تلقائي (WhatsApp Cloud)</label>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="sendGroupReport">ارسال لمجموعة</button>
+            <button id="sendSelected">ارسال للطلاب المختارين</button>
+            <button id="refreshReports" type="button" class="small-btn" style="background:#bdc3c7">تحديث</button>
+          </div>
+          <div id="reportMsg" class="muted" style="margin-top:8px"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(reportsPanel);
+
+    async function loadReportClasses(){
+      const sel = document.getElementById('reportClassSelect');
+      const res = await fetch('/api/classes');
+      const classes = await res.json();
+      sel.innerHTML = '<option value="">الكل</option>' + classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      document.getElementById('reportClassSelect').onchange = async ()=>{
+        const cid = document.getElementById('reportClassSelect').value;
+        const gres = await fetch('/api/groups?class_id=' + cid);
+        const groups = await gres.json();
+        document.getElementById('reportGroupSelect').innerHTML = '<option value="">اختر المجموعة</option>' + groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+      }
+    }
+    loadReportClasses();
+
+    document.getElementById('openReportsBtn').addEventListener('click', ()=>{ reportsPanel.style.display='block'; loadReportClasses(); });
+    document.getElementById('closeReports').addEventListener('click', ()=> reportsPanel.style.display='none');
+
+    document.getElementById('fetchGroupStudents').addEventListener('click', async ()=>{
+      const gid = document.getElementById('reportGroupSelect').value;
+      const list = document.getElementById('groupStudentsList');
+      if(!gid) { list.innerHTML = '<div class="muted">اختر مجموعة</div>'; return; }
+      list.innerHTML = 'جاري التحميل...';
+      const res = await fetch('/api/group_students?group_id=' + gid);
+      const students = await res.json();
+      if(!students || !students.length){ list.innerHTML = '<div class="muted">لا يوجد طلاب</div>'; return; }
+      list.innerHTML = students.map(s=>`<div style="padding:6px;border-bottom:1px solid #eee"><input type="checkbox" data-id="${s.id}" data-uuid="${s.uuid}" /> <b>${s.first_name} ${s.last_name||''}</b> — UUID: ${s.uuid}</div>`).join('');
+    });
+
+    document.getElementById('sendGroupReport').addEventListener('click', async ()=>{
+      const gid = document.getElementById('reportGroupSelect').value;
+      const msg = document.getElementById('reportMessage').value.trim();
+      const status = document.getElementById('reportMsg');
+      if(!gid) { status.textContent = 'اختر مجموعة'; return; }
+      if(!msg) { status.textContent = 'اكتب نص التقرير'; return; }
+      status.textContent = 'جاري الإرسال...';
+  const mode = document.querySelector('input[name="send_mode"]:checked').value;
+  const fd = new FormData(); fd.append('group_id', gid); fd.append('message', msg); fd.append('send_mode', mode);
+      const res = await fetch('/api/wa/send_report', { method: 'POST', body: fd });
+      const j = await res.json().catch(()=>({}));
+      if(res.ok && j.ok){ status.textContent = 'تم تسجيل الطلب، الرسائل سَتُرسل (مسجل محلياً)'; loadTreasury(); }
+      else status.textContent = j.error || 'حدث خطأ';
+    });
+
+    document.getElementById('sendSelected').addEventListener('click', async ()=>{
+      const checks = Array.from(document.querySelectorAll('#groupStudentsList input[type=checkbox]:checked'));
+      if(!checks.length) return document.getElementById('reportMsg').textContent = 'اختر طلاباً';
+      const msg = document.getElementById('reportMessage').value.trim();
+      if(!msg) return document.getElementById('reportMsg').textContent = 'اكتب نص التقرير';
+      document.getElementById('reportMsg').textContent = 'جاري التسجيل...';
+      for(const c of checks){
+        const sid = c.getAttribute('data-id');
+  const mode = document.querySelector('input[name="send_mode"]:checked').value;
+  const fd = new FormData(); fd.append('student_id', sid); fd.append('message', msg); fd.append('send_mode', mode);
+  await fetch('/api/wa/send_report', { method: 'POST', body: fd });
+      }
+      document.getElementById('reportMsg').textContent = 'تم تسجيل الإرسال لكل الطلاب المختارين';
+    });
+
+    async function loadTreasury(){
+      const sEl = document.getElementById('treasurySummary');
+      const byEl = document.getElementById('treasuryByClass');
+      const expList = document.getElementById('expensesList');
+      if(sEl) sEl.textContent = 'جارٍ التحميل...';
+      try{
+        const res = await fetch('/api/treasury/summary');
+        const summary = await res.json();
+        if(sEl) sEl.innerHTML = `<div>إجمالي الواردات: <b>${summary.total_income}</b></div><div>المدفوعات: ${summary.total_payments}</div><div>مبيعات كتب: ${summary.total_book_sales}</div><div>إجمالي المصروفات: ${summary.total_expenses}</div><div>الرصيد: <b>${summary.balance}</b></div>`;
+        // by class
+        let html = '';
+        const by = summary.by_class || {};
+        for(const cls in by){
+          const groups = by[cls];
+          html += `<div style="margin-top:8px"><b>الصف ${cls || 'غير محدد'}</b>`;
+          for(const g in groups){ html += `<div style="margin-right:8px">المجموعة ${g || 'عام'}: ${groups[g]}</div>`; }
+          html += '</div>';
+        }
+        if(byEl) byEl.innerHTML = html || '<div class="muted">لا توجد بيانات تفصيلية</div>';
+
+        // load expenses
+        const r2 = await fetch('/api/treasury/expenses');
+        const ex = await r2.json();
+        expList.innerHTML = '';
+        if(ex && ex.length){
+          ex.forEach(it=>{
+            const d = document.createElement('div');
+            d.style.padding = '6px 8px'; d.style.borderBottom = '1px solid #eee';
+            d.innerHTML = `<div style="font-weight:600">${it.title} — ${it.amount}</div><div class="muted">${it.date} ${it.note?('— '+it.note):''}</div>`;
+            expList.appendChild(d);
+          });
+        } else {
+          expList.innerHTML = '<div class="muted">لا توجد مصروفات مسجلة</div>';
+        }
+      } catch(err){ if(sEl) sEl.textContent = 'خطأ تحميل: ' + err.message; }
+    }
+
+    openTreasuryBtn.addEventListener('click', function(){ treasuryPanel.style.display='block'; loadTreasury(); });
+    document.getElementById('closeTreasury').addEventListener('click', ()=> treasuryPanel.style.display='none');
+    document.getElementById('refreshTreasury').addEventListener('click', ()=> loadTreasury());
+
+    document.getElementById('addExpenseBtn').addEventListener('click', async ()=>{
+      const title = document.getElementById('expTitle').value.trim();
+      const amount = parseFloat(document.getElementById('expAmount').value);
+      const note = document.getElementById('expNote').value.trim();
+      const msg = document.getElementById('expenseMsg');
+      if(!title || !amount || isNaN(amount)) { if(msg) msg.textContent = 'ادخل عنوان ومبلغ صالح'; return; }
+      msg.textContent = 'جاري الحفظ...';
+      const fd = new FormData(); fd.append('title', title); fd.append('amount', amount); fd.append('note', note);
+      const res = await fetch('/api/treasury/expense', {method:'POST', body: fd});
+      const j = await res.json().catch(()=>({}));
+      if(res.ok && j.ok){ msg.textContent = 'تم تسجيل المصروف'; document.getElementById('expTitle').value=''; document.getElementById('expAmount').value=''; document.getElementById('expNote').value=''; loadTreasury(); }
+      else msg.textContent = j.error || 'حدث خطأ';
+    });
+  </script>
+</body>
+</html>

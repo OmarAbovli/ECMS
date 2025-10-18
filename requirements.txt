@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+databases
+jinja2
+python-multipart
+python-barcode
+qrcode
+Pillow
+pyserial
+requests
+playwright
+pywhatkit
