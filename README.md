@@ -1,26 +1,26 @@
-# 🚀 Educational Center Management System (ECMS) 🚀
+#  Educational Center Management System (ECMS) 
 
 Tired of managing your students with spreadsheets from the 90s? Say hello to the future! This project is a modern, sleek with the badazz desigen, and powerful Student Management System designed to make your life as a learning center administrator easier, more efficient, and a lot more fun.
 
 Built with a powerful Python and FastAPI backend, this system is so fast it will make your head spin (in a good way).
 
-## 🤔 Why This Project?
+##  Why This Project?
 
 Because life is too short for boring admin tasks and i had alot of free time and iam looking for a job. This system was born out of a desire to bring the joy back into managing a learning center. No more paper cuts, no more lost records, just pure, unadulterated efficiency. Plus, who doesn't love a good-looking dashboard?
 
-## ✨ Features ✨
+##  Features ✨
 
 This is not your grandma's student management system. Here's what you get:
 
-*   **👨‍🎓 Student Management:** Add, search, and manage students with ease. Find any student faster than you can say "abracadabra".
-*   **✅ Attendance Tracking:** Zap students in with an RFID scanner. It's like magic, but with more radio waves.
-*   **📝 Test & Result Management:** Create tests, record scores, and watch your students' progress soar.
-*   **💰 Payment Tracking:** Keep track of payments and know who still owes you money. No more awkward conversations.
-*   **📱 WhatsApp Integration:** Automatically send beautiful reports to parents via WhatsApp. They'll think you're a wizard.
+*   ** Student Management:** Add, search, and manage students with ease. Find any student faster than you can say "abracadabra".
+*   ** Attendance Tracking:** Zap students in with an RFID scanner. It's like magic, but with more radio waves.
+*   ** Test & Result Management:** Create tests, record scores, and watch your students' progress soar.
+*   ** Payment Tracking:** Keep track of payments and know who still owes you money. No more awkward conversations.
+*   ** WhatsApp Integration:** Automatically send beautiful reports to parents via WhatsApp. They'll think you're a wizard.
 *   **큐알코드 Barcode & QR Code Generation:** Generate barcodes and QR codes for each student. Because everything is better with scannable codes.
-*   **🏦 Treasury Management:** Manage your income and expenses like a pro. Know where your money is going, and where it's coming from.
+*   ** Treasury Management:** Manage your income and expenses like a pro. Know where your money is going, and where it's coming from.
 
-## 🛠️ Technologies Used 🛠️
+##  Technologies Used 
 
 This project is built with a carefully selected stack of modern and powerful technologies:
 
@@ -35,7 +35,7 @@ This project is built with a carefully selected stack of modern and powerful tec
     *   HTML, CSS, JavaScript - The holy trinity of the web.
 *   **And more...** (see `requirements.txt` for the full list of ingredients).
 
-## 🚀 Getting Started 🚀
+##  Getting Started 
 
 Ready to join the future? Here's how to get started:
 
@@ -88,7 +88,7 @@ python -m PyInstaller sys_app.spec
 
 You'll find your shiny new `sys_app.exe` in the `dist` directory.
 
-## 🤝 Contributing
+##  Contributing
 
 Got ideas? Found a bug? Want to make this project even more awesome? Contributions are welcome!
 
